@@ -1,0 +1,757 @@
+{
+  "name": "Automated EOD Daily Log Generator and Teams Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Generate a comprehensive End-of-Day Daily Log by analyzing the following data:\n\nBuilding: {{ $json.building }}\nDate: {{ $json.date }}\n\nOverall Status:\n{{ JSON.stringify($json.overall) }}\n\nToday's Changes Summary:\n{{ JSON.stringify($json.summary) }}\n\nToday's Changes (detail):\n{{ JSON.stringify($json.changes) }}\n\nMeeting Transcription:\n{{ $json.transcript_clean }}\n\nCreate a curated log that synthesizes both the progress data and the meeting\ntranscription into: a brief summary, key takeaways, action items with owners\nand due dates, follow-ups needed, and highlights from today's changes.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an expert executive assistant specializing in creating concise, actionable End-of-Day reports. Your role is to synthesize information from multiple sources (What's New items and meeting notes) into a well-structured daily log. Extract key takeaways, identify action items with clear ownership and deadlines, note important follow-ups, and highlight significant updates. Be concise, professional, and focus on actionable insights."
+        }
+      },
+      "id": "686f3549-3c0d-4d41-8a17-bbb0c69d2715",
+      "name": "Generate EOD Daily Log",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        624,
+        416
+      ]
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"summary\": \"Brief overview of the day\",\n  \"keyTakeaways\": [\"Takeaway 1\", \"Takeaway 2\"],\n  \"actionItems\": [\n    { \"task\": \"Action item description\", \"owner\": \"Person responsible\", \"dueDate\": \"2024-01-20\" }\n  ],\n  \"followUps\": [\"Follow-up item 1\", \"Follow-up item 2\"],\n  \"whatsNewHighlights\": [\"Highlight from What's New items\"]\n}"
+      },
+      "id": "62ab0c10-0c72-4a3b-8780-4d03ffc33579",
+      "name": "EOD Log Format",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        768,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whats-new",
+        "options": {}
+      },
+      "id": "c9ea8f60-77eb-435c-83db-cab536cf2bc4",
+      "name": "EPMS Dashboard Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -464,
+        -64
+      ],
+      "webhookId": "733e1132-5c43-4811-b624-3fd63914fe6d"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.action }}",
+                    "rightValue": "daily_progress",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "87e9695e-614d-4cd0-9397-751a3853c884"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "da0d7d23-c99f-4cc6-856b-eee2e134267a",
+                    "leftValue": "={{ $json.body.action }}",
+                    "rightValue": "generate_report",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -272,
+        -64
+      ],
+      "id": "fb2c9965-c406-49b8-a1f6-1b618183683d",
+      "name": "Update Daily Progress or Generate Report"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the payload string and keep only LLM-relevant fields\nconst data = $json.body;\n\nconst clean = {\n  building: data.building,\n  building_number: data.building_number,\n  date: data.date,\n  sent_at: data.sent_at,\n  overall: data.overall,\n  summary: data.summary,\n  changes: data.changes,\n};\n\nreturn [{ json: clean }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        -112
+      ],
+      "id": "c7bad655-79a0-4da5-9d79-dad08b3df0e1",
+      "name": "Parse Payload"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "pOHxK5yZVCaGou8Z",
+          "mode": "list",
+          "cachedResultName": "Daily Log",
+          "cachedResultUrl": "/projects/JUylahkCb9iGsQrr/datatables/pOHxK5yZVCaGou8Z"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "building": "={{ $json.building }}",
+            "date": "={{ $json.date  }}",
+            "transcript": "={{ $json.transcript_clean }}",
+            "changes_json": "={{ JSON.stringify($json.changes)  }}",
+            "overall_json": "={{ JSON.stringify($json.overall)  }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "building",
+              "displayName": "building",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "building_number",
+              "displayName": "building_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "sent_at",
+              "displayName": "sent_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "transcript",
+              "displayName": "transcript",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "changes_json",
+              "displayName": "changes_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "overall_json",
+              "displayName": "overall_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        192,
+        -112
+      ],
+      "id": "3bd5b341-4dfc-4b67-8b96-efc313e31826",
+      "name": "Append to Daily Log Table"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "910b83c7-8cb1-4f68-8f23-13e2c00cb4c4",
+              "leftValue": "={{ JSON.parse($json.body.payload).has_transcription }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        96
+      ],
+      "id": "f26b70b0-64d8-4dfb-a881-7b8d07fdc0a9",
+      "name": "Contains Transcript?"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "binaryPropertyName": "transcription",
+        "destinationKey": "meeting_transcription",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        384,
+        16
+      ],
+      "id": "7e23458b-403e-42c2-a542-9e8ce269c158",
+      "name": "Convert Binary to Text File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.meeting_transcription || \"\";\nconst clean = raw\n  .replace(/WEBVTT/g, \"\")\n  .replace(/[0-9a-f-]+\\/\\d+-\\d+/g, \"\")\n  .replace(/\\d{2}:\\d{2}:\\d{2}\\.\\d{3} --> .*/g, \"\")\n  .replace(/<\\/?v[^>]*>/g, \"\")\n  .replace(/\\r\\n|\\r|\\n/g, \" \")\n  .replace(/\\s{2,}/g, \" \")\n  .trim();\n\n// drop the raw transcription, keep everything else + the clean version\nconst { meeting_transcription, ...rest } = $json;\nreturn [{ json: { ...rest, transcript_clean: clean } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        16
+      ],
+      "id": "0dd6fa21-247f-425e-b4ba-ae75fca610a2",
+      "name": "Clean .vtt File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = JSON.parse($json.body.payload);\nreturn [{ json: { building: data.building } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        208
+      ],
+      "id": "53b1854e-e1ff-401a-adc2-f37deb6d1a1f",
+      "name": "Parse Building Name"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        816,
+        32
+      ],
+      "id": "82be3857-3635-4eb6-931a-a7f20e33b32f",
+      "name": "Append Building to Transcript"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "pOHxK5yZVCaGou8Z",
+          "mode": "list",
+          "cachedResultName": "Daily Log",
+          "cachedResultUrl": "/projects/JUylahkCb9iGsQrr/datatables/pOHxK5yZVCaGou8Z"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "building": "={{ $json.building }}",
+            "date": "={{ $json.date  }}",
+            "transcript": "={{ $json.transcript_clean }}",
+            "changes_json": "={{ JSON.stringify($json.changes)  }}",
+            "overall_json": "={{ JSON.stringify($json.overall)  }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "building",
+              "displayName": "building",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "building_number",
+              "displayName": "building_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "sent_at",
+              "displayName": "sent_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "transcript",
+              "displayName": "transcript",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "changes_json",
+              "displayName": "changes_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "overall_json",
+              "displayName": "overall_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1408,
+        192
+      ],
+      "id": "dc1840f6-6601-40e9-8cd4-727c070f0501",
+      "name": "Append to Daily Log Table1"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "pOHxK5yZVCaGou8Z",
+          "mode": "list",
+          "cachedResultName": "Daily Log",
+          "cachedResultUrl": "/projects/JUylahkCb9iGsQrr/datatables/pOHxK5yZVCaGou8Z"
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        384,
+        416
+      ],
+      "id": "e5e7e651-d679-462f-99d9-1b8c11d2ff54",
+      "name": "Retrieve Daily Log Data for Generation"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "70f1abfb-f8da-404f-9fe7-3917c8b91ff2",
+      "name": "LLM Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        624,
+        656
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pull the LLM's structured output + the building/date context\nconst out = $json.output;\n\n// Grab building/date from an upstream node (adjust node name if different)\nlet building = \"Building\", date = \"\";\ntry {\n  building = $('Combine Data Sources').item.json.building || building;\n  date = $('Combine Data Sources').item.json.date || \"\";\n} catch (e) {}\n\nconst esc = (s) => String(s ?? \"\")\n  .replace(/&/g, \"&amp;\").replace(/</g, \"&lt;\").replace(/>/g, \"&gt;\");\n\n// Format a nice date if possible\nlet niceDate = date;\ntry {\n  niceDate = new Date(date).toLocaleDateString(\"en-US\",\n    { weekday: \"long\", year: \"numeric\", month: \"long\", day: \"numeric\" });\n} catch (e) {}\n\nconst takeaways = (out.keyTakeaways || [])\n  .map(t => `<li style=\"margin:6px 0;\">${esc(t)}</li>`).join(\"\");\n\nconst actions = (out.actionItems || []).map(a => `\n  <tr>\n    <td style=\"padding:8px 10px;border-bottom:1px solid #e5e7eb;\">${esc(a.task)}</td>\n    <td style=\"padding:8px 10px;border-bottom:1px solid #e5e7eb;white-space:nowrap;\">${esc(a.owner)}</td>\n    <td style=\"padding:8px 10px;border-bottom:1px solid #e5e7eb;white-space:nowrap;\">${esc(a.dueDate)}</td>\n  </tr>`).join(\"\");\n\nconst followUps = (out.followUps || [])\n  .map(f => `<li style=\"margin:6px 0;\">${esc(f)}</li>`).join(\"\");\n\nconst highlights = (out.whatsNewHighlights || [])\n  .map(h => `<li style=\"margin:6px 0;\">${esc(h)}</li>`).join(\"\");\n\nconst html = `\n<div style=\"font-family:Segoe UI,Arial,sans-serif;color:#1f2937;max-width:720px;\n            margin:0 auto;padding:24px;background:#ffffff;\">\n  <div style=\"border-bottom:3px solid #2f80ed;padding-bottom:14px;margin-bottom:20px;\">\n    <h1 style=\"margin:0;font-size:22px;color:#111827;\">End-of-Day Report — ${esc(building)}</h1>\n    <div style=\"color:#6b7280;font-size:14px;margin-top:4px;\">${esc(niceDate)}</div>\n  </div>\n\n  <h2 style=\"font-size:16px;color:#2f80ed;margin:0 0 8px;\">Summary</h2>\n  <p style=\"line-height:1.6;margin:0 0 22px;\">${esc(out.summary)}</p>\n\n  ${takeaways ? `\n  <h2 style=\"font-size:16px;color:#2f80ed;margin:0 0 8px;\">Key Takeaways</h2>\n  <ul style=\"margin:0 0 22px;padding-left:20px;line-height:1.5;\">${takeaways}</ul>` : \"\"}\n\n  ${actions ? `\n  <h2 style=\"font-size:16px;color:#2f80ed;margin:0 0 10px;\">Action Items</h2>\n  <table style=\"width:100%;border-collapse:collapse;margin-bottom:22px;font-size:14px;\">\n    <thead>\n      <tr style=\"background:#f3f4f6;\">\n        <th style=\"text-align:left;padding:8px 10px;\">Task</th>\n        <th style=\"text-align:left;padding:8px 10px;\">Owner</th>\n        <th style=\"text-align:left;padding:8px 10px;\">Due</th>\n      </tr>\n    </thead>\n    <tbody>${actions}</tbody>\n  </table>` : \"\"}\n\n  ${followUps ? `\n  <h2 style=\"font-size:16px;color:#2f80ed;margin:0 0 8px;\">Follow-Ups Needed</h2>\n  <ul style=\"margin:0 0 22px;padding-left:20px;line-height:1.5;\">${followUps}</ul>` : \"\"}\n\n  ${highlights ? `\n  <h2 style=\"font-size:16px;color:#2f80ed;margin:0 0 8px;\">Highlights</h2>\n  <ul style=\"margin:0 0 22px;padding-left:20px;line-height:1.5;\">${highlights}</ul>` : \"\"}\n\n  <div style=\"border-top:1px solid #e5e7eb;margin-top:20px;padding-top:12px;\n              color:#9ca3af;font-size:12px;\">\n    Automatically generated from EPMS CX progress data and meeting notes.\n  </div>\n</div>`;\n\n// Also build a plain-text fallback\nconst plain = [\n  `End-of-Day Report — ${building}`,\n  niceDate, \"\",\n  \"SUMMARY\", out.summary, \"\",\n  \"KEY TAKEAWAYS\", ...(out.keyTakeaways || []).map(t => `• ${t}`), \"\",\n  \"ACTION ITEMS\",\n  ...(out.actionItems || []).map(a => `• ${a.task} (Owner: ${a.owner}, Due: ${a.dueDate})`), \"\",\n  \"FOLLOW-UPS\", ...(out.followUps || []).map(f => `• ${f}`),\n].join(\"\\n\");\n\nreturn [{ json: { report_html: html, report_text: plain, building, date } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        416
+      ],
+      "id": "13479d89-f9fb-4c65-9341-13fcf4a4546d",
+      "name": "HTML Parser for Email Format"
+    },
+    {
+      "parameters": {
+        "sendTo": "jay.march@bwdesigngroup.com",
+        "subject": "=EOD Report — {{ $json.building }} — {{ $json.date }}",
+        "message": "={{ $json.report_html }}",
+        "options": {
+          "ccList": "tanish.pradhan@bwdesigngroup.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        416
+      ],
+      "id": "984e028f-ebf7-444c-89e5-b30213d50645",
+      "name": "Send Out EOD Report",
+      "webhookId": "180c7468-606e-498d-8143-eb101c0bf3a4",
+      "retryOnFail": true,
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Generate a comprehensive End-of-Day Daily Log by analyzing the following data:\n\nBuilding: {{ $json.building }}\nDate: {{ $json.date }}\n\nOverall Status:\n{{ JSON.stringify($json.overall) }}\n\nToday's Changes Summary:\n{{ JSON.stringify($json.summary) }}\n\nToday's Changes (detail):\n{{ JSON.stringify($json.changes) }}\n\nMeeting Transcription:\n{{ $json.transcript_clean }}\n\nCreate a curated log that synthesizes both the progress data and the meeting\ntranscription into: a brief summary, key takeaways, action items with owners\nand due dates, follow-ups needed, and highlights from today's changes.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an expert executive assistant specializing in creating concise, actionable End-of-Day reports. Your role is to synthesize information from multiple sources (What's New items and meeting notes) into a well-structured daily log. Extract key takeaways, identify action items with clear ownership and deadlines, note important follow-ups, and highlight significant updates. Be concise, professional, and focus on actionable insights."
+        }
+      },
+      "id": "f282fe41-6a69-4714-8b96-245e33bcb515",
+      "name": "Summarize Transcript",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1008,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "6d6b47a1-8ce1-471f-8546-bcdedf5f7cb0",
+      "name": "LLM Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1008,
+        208
+      ],
+      "disabled": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Generate EOD Daily Log": {
+      "main": [
+        [
+          {
+            "node": "HTML Parser for Email Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EOD Log Format": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Generate EOD Daily Log",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EPMS Dashboard Webhook": {
+      "main": [
+        [
+          {
+            "node": "Update Daily Progress or Generate Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Daily Progress or Generate Report": {
+      "main": [
+        [
+          {
+            "node": "Parse Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Contains Transcript?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Payload": {
+      "main": [
+        [
+          {
+            "node": "Append to Daily Log Table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Daily Log Table": {
+      "main": [
+        []
+      ]
+    },
+    "Contains Transcript?": {
+      "main": [
+        [
+          {
+            "node": "Convert Binary to Text File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Parse Building Name",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Retrieve Daily Log Data for Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Binary to Text File": {
+      "main": [
+        [
+          {
+            "node": "Clean .vtt File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean .vtt File": {
+      "main": [
+        [
+          {
+            "node": "Append Building to Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Building Name": {
+      "main": [
+        [
+          {
+            "node": "Append Building to Transcript",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Append Building to Transcript": {
+      "main": [
+        [
+          {
+            "node": "Summarize Transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Daily Log Table1": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Daily Log Data for Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Daily Log Data for Generation": {
+      "main": [
+        [
+          {
+            "node": "Generate EOD Daily Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate EOD Daily Log",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML Parser for Email Format": {
+      "main": [
+        [
+          {
+            "node": "Send Out EOD Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Summarize Transcript",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Transcript": {
+      "main": [
+        [
+          {
+            "node": "Append to Daily Log Table1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "28a54133-4788-44d0-b31c-a68369f1b935",
+  "meta": {
+    "instanceId": "0c8a3968df67098d557fe228811a82c95de1603c8d527d9de2be0004c53bfae2"
+  },
+  "nodeGroups": [],
+  "id": "F0rV4SLvWHc6EdVe",
+  "tags": []
+}
